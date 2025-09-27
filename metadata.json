@@ -1,0 +1,5 @@
+{
+  "name": "tao-anh-trend-0B2",
+  "description": "An app to generate trending images using AI by applying styles to an uploaded photo.",
+  "requestFramePermissions": []
+}
