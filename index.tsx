@@ -109,8 +109,24 @@ const App = () => {
       });
 
       if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || `Lỗi máy chủ: ${response.status}`);
+        let errorText = `Lỗi máy chủ: ${response.status} ${response.statusText}`;
+        try {
+          // Try to parse as JSON, as the worker might send a JSON error
+          const errorData = await response.json();
+          errorText = errorData.error || JSON.stringify(errorData);
+        } catch (e) {
+          // If JSON parsing fails, read as text. This can be useful for
+          // Cloudflare Worker errors that return HTML or plain text.
+          try {
+            const textError = await response.text();
+            if (textError) {
+              errorText = textError;
+            }
+          } catch (textErr) {
+            // Do nothing, just use the status text
+          }
+        }
+        throw new Error(errorText);
       }
 
       const data = await response.json();
@@ -119,11 +135,23 @@ const App = () => {
         throw new Error(data.error);
       }
       
+      if (!data.image) {
+        throw new Error('Phản hồi từ máy chủ không hợp lệ, không tìm thấy dữ liệu ảnh.');
+      }
+      
       setProgress(100);
       setResultImage(`data:image/jpeg;base64,${data.image}`);
     } catch (err) {
       console.error(err);
-      setError(err.message || 'Đã xảy ra lỗi không xác định. Vui lòng thử lại.');
+      let message = 'Đã xảy ra lỗi không xác định. Vui lòng thử lại.';
+      if (err instanceof Error) {
+        message = err.message;
+      }
+      // Provide a more user-friendly message for network errors
+      if (message.toLowerCase().includes('failed to fetch')) {
+        message = 'Không thể kết nối đến máy chủ. Vui lòng kiểm tra kết nối mạng của bạn và thử lại.';
+      }
+      setError(message);
     } finally {
       setIsLoading(false);
     }
